@@ -3,9 +3,12 @@
 const express = require( 'express' );
 const cors = require( 'cors' );
 const pg = require( 'pg' );
+const bodyParser = require('body-parser')
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const urlencodedParser = bodyParser.urlencoded({extended: true});
+
 
 console.log( process.env.DATABASE_URL );
 const client = new pg.Client('postgres://postgres:hello@localhost:5432/books_app');
@@ -14,7 +17,6 @@ client.on( 'error', err => console.error( err ) );
 
 app.use( cors() );
 
-app.get( '/', ( req, res ) => res.send( 'Testing 1, 2, 3' ) );
 app.get('/api/v1/books', (req, res) => {
   let sql = `SELECT * FROM books;`;
   client.query(sql, (err, data) => {
@@ -25,6 +27,26 @@ app.get('/api/v1/books', (req, res) => {
   })
 }) 
 
+app.get('/api/v1/books/:singleBookId', (req, res) => {
+  let {singleBookId} = req.params;
+  console.log(req.params.singleBookId);  
+  let sql= `SELECT * FROM books WHERE book_id=$1;`
+  let values = [singleBookId]
+
+  client.query(sql, values)
+    .then(data => res.send(data.rows))
+})
+
+app.post('/api/v1/books/', (req, res) => {
+  let {title, author, isbn, image_url, description} = req.body;
+  let sql = `INSERT INTO books(title, author, isbn, image_url, description) 
+  VALUES ($1, $2, $3, $4, $5)`;
+  let values = [title, author, isbn, image_url, description];
+
+  client.query(sql, values)
+    .then(res.sendStatus(201))
+    .catch(console.error);
+});
 app.get( '*', ( req, res ) => res.status( 403 ).send( 'This route does not exist' ) );
 
 loadDB()
@@ -42,3 +64,4 @@ function loadDB() {
         isbn VARCHAR(13));`
   )
 }
+
